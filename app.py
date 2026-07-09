@@ -124,7 +124,7 @@ def chat():
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4.1", # gpt-4o-mini
+            model="gpt-4o", # gpt-4o-mini, gpt-4.1
             messages=messages,
         )
         reply = response.choices[0].message.content
