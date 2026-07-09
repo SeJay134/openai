@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/index.css">
+    <title>home ai portfolio</title>
+</head>
+<body>
+
+<main id="main">
+
+    <!-- welcome / intro -->
+    <div id="app_welcome"></div>
+
+    <!-- center — scrollable chat window -->
+    <div id="chat_container">
+        <div id="chat"></div>
+    </div>
+
+    <!-- Input field -->
+    <div id="prompt">
+        <textarea id="input" aria-label="Chat input" spellcheck="false"
+            autocomplete="off" maxlength="400000"
+            placeholder="Ask about my portfolio, projects, or skills..."></textarea>
+        <button id="send_btn" class="hidden"></button>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>© 2026 Sergei Patrushev</p>
+    </footer>
+
+</main>
+
+<script src="js/index.js"></script>
+<script src="js/app_welcome_func.js"></script>
+<script src="js/button.js"></script>
+
+</body>
+</html>
