@@ -6,6 +6,10 @@ from flask import Flask, request, jsonify
 import json
 from openai import OpenAI
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
 # ----------------- setup -----------------
 load_dotenv()
 API_KEY = os.getenv("OPENAI_API_KEY")
@@ -43,6 +47,32 @@ RULES:
 5. Output only the answer. No extra comments.
  - after answer do not provide extra information about something specific or not fully provided.
 """
+
+MEMORY_FILE = 'memory.json'
+
+def load_memory():
+    logging.info('app.py load_memory() was invoked')
+    if not os.path.exists(MEMORY_FILE):
+        return []
+    try:
+        with open(MEMORY_FILE, 'r', encoding='UTF-8') as f:
+            return json.load(f)
+    except:
+        return []
+    
+def save_memory(memory):
+    logging.info('app.py save_memory() was invoked')
+    with open(MEMORY_FILE, 'w', encoding='UTF-8') as f:
+        json.dump(memory, f, ensure_ascii=False, indent=2)
+
+def add_to_memory(user_message, assistant_replay):
+    memory = load_memory()
+    memory.append({
+        'user': user_message,
+        'assistant': assistant_replay
+    })
+    save_memory(memory)
+
 
 def detect_language(text: str) -> str:
     cyr = sum('а' <= ch.lower() <= 'я' or ch == 'ё' for ch in text)
