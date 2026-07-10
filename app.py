@@ -48,6 +48,7 @@ RULES:
  - after answer do not provide extra information about something specific or not fully provided.
 """
 
+# ------------- memory ---------------
 MEMORY_FILE = 'memory.json'
 
 def load_memory():
@@ -72,7 +73,7 @@ def add_to_memory(user_message, assistant_replay):
         'assistant': assistant_replay
     })
     save_memory(memory)
-
+# ----------------------------
 
 def detect_language(text: str) -> str:
     cyr = sum('а' <= ch.lower() <= 'я' or ch == 'ё' for ch in text)
@@ -152,18 +153,33 @@ def chat():
 
     logger.debug(f"Payload to OpenAI: {messages}")
 
+    memory = load_memory()
+    memory_text = '\n'.join(
+        [f"user: {m['user']}\nAssistant: {m['assistant']}" for m in memory]
+    )
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        ["role": "system", "content": f'Conversation memory:\n{memory_text}']
+    ]
+
     try:
         response = client.chat.completions.create(
             model="gpt-4o", # gpt-4o-mini, gpt-4.1
             messages=messages,
         )
         reply = response.choices[0].message.content
+
+        add_to_memory(user_text, reply)
+
         logger.info(f"[BOT] {reply}")
         return jsonify({"reply": reply})
     except Exception as e:
         logger.error(f"OpenAI error: {e}")
         return jsonify({"reply": "Error: OpenAI request failed."}), 200
 
+@app.route("/api/memory", methods=["GET"])
+def get_memory():
+    return jsonify(load_memory())
 
 # ----------------- entry -----------------
 if __name__ == "__main__":
