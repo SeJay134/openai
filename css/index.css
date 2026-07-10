@@ -172,11 +172,11 @@ body {
 /* button send / stop */
 #send_btn {
     position: absolute;
-    right: 2px;
-    bottom: 21px;
+    right: 3px;
+    bottom: 23px;
 
-    width: 42px;
-    height: 42px;
+    width: 40px;
+    height: 40px;
 
     border-radius: 50%;
     border: none;
