@@ -136,7 +136,7 @@ def chat():
 
     try:
         response = client.chat.completions.create(
-            model="gpt-5.4-mini-2026-03-17", # gpt-4o-mini, gpt-4.1, gpt-4o
+            model="gpt-5.2-pro", # gpt-4o-mini, gpt-4.1, gpt-4o, gpt-5.4-mini-2026-03-17
             messages=messages,
         )
         reply = response.choices[0].message.content
