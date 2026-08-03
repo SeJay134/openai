@@ -1,10 +1,13 @@
+# roadofflowers project based on OpenAI
 # app.py
+
 import os                                       # files
 import logging
 from dotenv import load_dotenv                  # .env
 from flask import Flask, request, jsonify
 import json
 from openai import OpenAI
+from cors_config import ALLOWED_ORIGIN
 
 # ----------------- logging -----------------
 logging.basicConfig(
@@ -91,10 +94,13 @@ def normalize_history(messages):
     return normalized
 
 
-# ----------------- CORS for ngrok front -----------------
+# ----------------- CORS -----------------
 @app.after_request
 def add_cors_headers(response):
-    response.headers["Access-Control-Allow-Origin"] = "*"
+    origin = request.headers.get('Origin')
+    if origin in ALLOWED_ORIGIN:
+        response.headers["Access-Control-Allow-Origin"] = origin
+
     response.headers["Access-Control-Allow-Headers"] = "Content-Type"
     response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
     return response
@@ -157,3 +163,4 @@ def get_memory():
 # ----------------- entry -----------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
