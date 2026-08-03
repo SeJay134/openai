@@ -9,7 +9,7 @@ fixMobileHeight();
 window.visualViewport?.addEventListener('resize', fixMobileHeight);
 window.addEventListener('orientationchange', fixMobileHeight);
 
-const API_URL = "https://dangle-scarecrow-baguette.ngrok-free.dev";
+const API_URL = "config.js";
 
 let messages = [];
 console.log("Chat initialized");
@@ -73,7 +73,7 @@ input.addEventListener("keydown", async (event) => {
     const data = await response.json();
     const reply = data.reply;
 
-    messages.push({ role: "bot", content: reply }); // 'bot' for ollama, 'assistant' for open ai
+    messages.push({ role: "assistant", content: reply }); // 'bot' for ollama, 'assistant' for open ai
     renderChat();
 });
 
