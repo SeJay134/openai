@@ -1,4 +1,4 @@
-// index.js
+// index js
 
 function fixMobileHeight() {
     const vh = (window.visualViewport?.height || window.innerHeight) * 0.01;
