@@ -3,7 +3,7 @@
 
 from flask import send_from_directory
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 import base64                                   # for generate img
 import io
 import os                                       # files
@@ -31,6 +31,15 @@ if not API_KEY:
 client = OpenAI(api_key=API_KEY)
 logger = logging.getLogger(__name__)
 app = Flask(__name__) # HTTP
+
+# --------------------- path generated ----------------------------
+GENERATED_DIR = os.path.join(os.path.dirname(__file__), "generated")
+os.makedirs(GENERATED_DIR, exist_ok=True)
+
+@app.get("/generated/<path:filename>")
+def get_generated(filename):
+    logger.info("app.py 'get_generated()' was invoked")
+    return send_from_directory(GENERATED_DIR, filename, mimetype="image/jpeg", as_attachment=False)
 
 # ----------------- prompt -----------------
 SYSTEM_PROMPT = """
@@ -64,6 +73,19 @@ When no image needed:
 }
 No extra text outside JSON.
 """
+# When you need to show an image in chat, respond ONLY in JSON:
+# {
+#   "reply": "text for user",
+#   "make_image": true,
+#   "image_prompt": "prompt for image generation in English or Russian",
+#   "size": "1024x1024"
+# }
+# When no image needed:
+# {
+#   "reply": "text for user",
+#   "make_image": false
+# }
+# No extra text outside JSON.
 
 # ------------- memory ---------------
 MEMORY_FILE = 'memory.json'
@@ -133,6 +155,31 @@ def chat_options():
     logger.info("app.py 'chat_options()' was invoked")
     return ("", 200)
 
+# ------------- generate img ------------------
+def generate_image_to_file(prompt: str, size: str = "1024x1024"):
+    allowed_sizes = {"1024x1024", "1536x1024", "1024x1536"}
+    if size not in allowed_sizes:
+        size = "1024x1024"
+
+    result = client.images.generate(
+        model="gpt-image-1",
+        prompt=prompt,
+        size=size,
+    )
+    b64 = result.data[0].b64_json
+    img_bytes = base64.b64decode(b64)
+
+    img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    filename = f"{ts}_{uuid4().hex}.jpg"
+
+    filepath = os.path.join(GENERATED_DIR, filename)
+    img.save(filepath, format="JPEG", quality=92, optimize=True)
+
+    base_url = request.host_url.rstrip("/")
+    url = f"{base_url}/generated/{filename}"
+    return url, filename
 
 # ----------------- main chat endpoint -----------------
 @app.route("/api/chat", methods=["POST"])
@@ -169,13 +216,43 @@ def chat():
             model="gpt-5.2", # gpt-4o-mini, gpt-4.1, gpt-4o, gpt-5.4-mini-2026-03-17
             messages=messages,
         )
-        reply = response.choices[0].message.content
+        # reply = response.choices[0].message.content
+        # -------------------------------------------
+        raw = (response.choices[0].message.content or "").strip()
+
+        # parse JSON from model
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            payload = {"reply": raw, "make_image": False}
+
+        reply = (payload.get("reply") or "").strip()
+        make_image = bool(payload.get("make_image", False))
+
+        image_url = None
+        image_filename = None
+
+        if make_image:
+            image_prompt = (payload.get("image_prompt") or "").strip()
+            size = (payload.get("size") or "1024x1024").strip()
+
+            if image_prompt:
+                image_url, image_filename = generate_image_to_file(image_prompt, size)
+            else:
+                make_image = False
+        # -------------------------------------------
 
         add_to_memory(prompt, reply) # memory saving
 
         logger.info(f"[BOT] {reply}")
-
-        return jsonify({"reply": reply})
+        # ---------------------------
+        return jsonify({
+            "reply": reply,
+            "image_url": image_url,
+            "image_filename": image_filename
+        })
+        # ---------------------------
+        # return jsonify({"reply": reply})
     except Exception as e:
         logger.error(f"OpenAI error: {e}")
         return jsonify({"reply": "Error: OpenAI request failed."}), 200
@@ -185,65 +262,19 @@ def get_memory():
     logger.info("app.py 'get_memory()' was invoked")
     return jsonify(load_memory())
 
-# --------------------- path ----------------------------
-GENERATED_DIR = os.path.join(os.path.dirname(__file__), "generated")
-os.makedirs(GENERATED_DIR, exist_ok=True)
 
-@app.get("/generated/<path:filename>")
-def get_generated(filename):
-    logger.info("app.py 'get_generated()' was invoked")
-    return send_from_directory(GENERATED_DIR, filename, mimetype="image/jpeg", as_attachment=False)
 # ------------------- Generate IMG -----------------------
 @app.post("/api/image")
 def api_image():
-    logger.info("app.py 'api_image()' was invoked")
-    data = request.get_json(force=True)
-    prompt = data.get("prompt", "").strip()
+    data = request.get_json(force=True) or {}
+    prompt = (data.get("prompt") or "").strip()
     size = (data.get("size") or "1024x1024").strip()
-
-    allowed_sizes = {"1024x1024", "1536x1024", "1024x1536"}
-    if size not in allowed_sizes:
-        size = "1024x1024"
-
     if not prompt:
         return jsonify({"error": "prompt is required"}), 400
 
-    try:
-        result = client.images.generate(
-            model="gpt-image-1",
-            prompt=prompt,
-            size=size,
-        )
+    url, filename = generate_image_to_file(prompt, size)
+    return jsonify({"url": url, "filename": filename})
 
-        b64 = result.data[0].b64_json
-        img_bytes = base64.b64decode(b64)
-
-        # convert to JPG
-        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-        filename = f"{datetime.datatime.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex}.jpg"
-        filepath = os.path.join(GENERATED_DIR, filename)
-        img.save(filepath, format="JPEG", quality=92, optimize=True)
-
-        base_url = request.host_url.rstrip("/")
-        url = f"{base_url}/generated/{filename}"
-        # return url, filename
-        return jsonify({"url": url, "filename": filename})
-
-        # out = io.BytesIO()
-        # img.save(out, format="JPEG", quality=92, optimize=True)
-        # out.seek(0)
-
-        # return send_file(
-        #     out,
-        #     mimetype="image/jpeg",
-        #     as_attachment=False,
-        #     download_name="image.jpg",
-        #     max_age=0
-        # )
-
-    except Exception as e:
-        logger.exception("Image generation failed")
-        return jsonify({"error": "image generation failed", "details": str(e)}), 500
 
 # ----------------- entry -----------------
 if __name__ == "__main__":
