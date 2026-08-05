@@ -9,3 +9,4 @@ old/
 memory.json
 cors_config.py
 config.js
+generated/

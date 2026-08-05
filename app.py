@@ -1,11 +1,18 @@
 # roadofflowers project based on OpenAI
 # app.py
 
+from flask import send_from_directory
+from uuid import uuid4
+from datetime import datetime
+import base64                                   # for generate img
+import io
 import os                                       # files
 import logging
 from dotenv import load_dotenv                  # .env
 from flask import Flask, request, jsonify
 import json
+from flask import Flask, request, send_file, jsonify
+from PIL import Image                           # for generate img
 from openai import OpenAI
 from cors_config import ALLOWED_ORIGIN
 
@@ -43,6 +50,19 @@ RULES:
 4. Provide concise, clear, and practical answers. Adjust the level of detail based on the complexity of the request.
 5. Answer directly and avoid unnecessary commentary. Do not add unrelated information. Include additional details only when they are relevant to the user’s request.
 
+When you need to show an image in chat, respond ONLY in JSON:
+{
+  "reply": "text for user",
+  "make_image": true,
+  "image_prompt": "prompt for image generation in English or Russian",
+  "size": "1024x1024"
+}
+When no image needed:
+{
+  "reply": "text for user",
+  "make_image": false
+}
+No extra text outside JSON.
 """
 
 # ------------- memory ---------------
@@ -65,6 +85,7 @@ def save_memory(memory):
         json.dump(memory, f, ensure_ascii=False, indent=2) # memory to json file
 
 def add_to_memory(user_message, assistant_reply): # what user said + current memory
+    logger.info("app.py 'add_to_memory()' was invoked")
     memory = load_memory()
     memory.append({
         'user': user_message,
@@ -74,6 +95,7 @@ def add_to_memory(user_message, assistant_reply): # what user said + current mem
 
 # ------------- bot → assistant ---------------
 def normalize_history(messages):
+    logger.info("app.py 'normalize_history()' was invoked")
     """
     Frontend sends:
       { role: "user" | "bot", content: ... }
@@ -97,6 +119,7 @@ def normalize_history(messages):
 # ----------------- CORS -----------------
 @app.after_request
 def add_cors_headers(response):
+    logger.info("app.py 'add_cors_headers()' was invoked")
     origin = request.headers.get('Origin')
     if origin in ALLOWED_ORIGIN:
         response.headers["Access-Control-Allow-Origin"] = origin
@@ -107,6 +130,7 @@ def add_cors_headers(response):
 
 @app.route("/api/chat", methods=["OPTIONS"])
 def chat_options():
+    logger.info("app.py 'chat_options()' was invoked")
     return ("", 200)
 
 
@@ -158,7 +182,68 @@ def chat():
 
 @app.route("/api/memory", methods=["GET"])
 def get_memory():
+    logger.info("app.py 'get_memory()' was invoked")
     return jsonify(load_memory())
+
+# --------------------- path ----------------------------
+GENERATED_DIR = os.path.join(os.path.dirname(__file__), "generated")
+os.makedirs(GENERATED_DIR, exist_ok=True)
+
+@app.get("/generated/<path:filename>")
+def get_generated(filename):
+    logger.info("app.py 'get_generated()' was invoked")
+    return send_from_directory(GENERATED_DIR, filename, mimetype="image/jpeg", as_attachment=False)
+# ------------------- Generate IMG -----------------------
+@app.post("/api/image")
+def api_image():
+    logger.info("app.py 'api_image()' was invoked")
+    data = request.get_json(force=True)
+    prompt = data.get("prompt", "").strip()
+    size = (data.get("size") or "1024x1024").strip()
+
+    allowed_sizes = {"1024x1024", "1536x1024", "1024x1536"}
+    if size not in allowed_sizes:
+        size = "1024x1024"
+
+    if not prompt:
+        return jsonify({"error": "prompt is required"}), 400
+
+    try:
+        result = client.images.generate(
+            model="gpt-image-1",
+            prompt=prompt,
+            size=size,
+        )
+
+        b64 = result.data[0].b64_json
+        img_bytes = base64.b64decode(b64)
+
+        # convert to JPG
+        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        filename = f"{datetime.datatime.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex}.jpg"
+        filepath = os.path.join(GENERATED_DIR, filename)
+        img.save(filepath, format="JPEG", quality=92, optimize=True)
+
+        base_url = request.host_url.rstrip("/")
+        url = f"{base_url}/generated/{filename}"
+        # return url, filename
+        return jsonify({"url": url, "filename": filename})
+
+        # out = io.BytesIO()
+        # img.save(out, format="JPEG", quality=92, optimize=True)
+        # out.seek(0)
+
+        # return send_file(
+        #     out,
+        #     mimetype="image/jpeg",
+        #     as_attachment=False,
+        #     download_name="image.jpg",
+        #     max_age=0
+        # )
+
+    except Exception as e:
+        logger.exception("Image generation failed")
+        return jsonify({"error": "image generation failed", "details": str(e)}), 500
 
 # ----------------- entry -----------------
 if __name__ == "__main__":
