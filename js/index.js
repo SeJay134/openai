@@ -1,4 +1,4 @@
-// index js
+// index.js
 
 function fixMobileHeight() {
     const vh = (window.visualViewport?.height || window.innerHeight) * 0.01;
@@ -9,7 +9,7 @@ fixMobileHeight();
 window.visualViewport?.addEventListener('resize', fixMobileHeight);
 window.addEventListener('orientationchange', fixMobileHeight);
 
-const API_URL = "config.js";
+// const API_URL;
 
 let messages = [];
 console.log("Chat initialized");

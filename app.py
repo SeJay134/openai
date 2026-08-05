@@ -162,7 +162,8 @@ def get_memory():
 
 # ----------------- entry -----------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5004, debug=True)
+    app.run(host="0.0.0.0", port=5004, debug=True) # flask 5004
 
-# python app.py
-# python -m http.server 5004
+# python app.py         port=5004
+
+# python -m http.server 6004        index.html port=6004
