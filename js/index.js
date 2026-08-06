@@ -48,7 +48,7 @@ function renderChat() {
         a.className = "msg-download";
         a.href = msg.image_url;
         a.download = msg.image_filename || "image.jpg";
-        a.textContent = "Скачать";
+        a.textContent = "Download";
         bubble.appendChild(a);
         }
 
@@ -78,7 +78,9 @@ input.addEventListener("input", () => {
 });
 
 input.addEventListener("keydown", async (event) => {
+    
     if (event.key !== "Enter") return;
+    if (event.shiftKey) return;
     event.preventDefault();
 
     const prompt = input.value.trim();
@@ -103,10 +105,10 @@ input.addEventListener("keydown", async (event) => {
     image_filename: data.image_filename     // опционально
     });
     renderChat();
-    
-    const reply = data.reply;
 
-    messages.push({ role: "assistant", content: reply }); // 'bot' for ollama, 'assistant' for open ai
-    renderChat();
+    // const reply = data.reply;
+
+    // messages.push({ role: "assistant", content: reply }); // 'bot' for ollama, 'assistant' for open ai
+    // renderChat();
 });
 

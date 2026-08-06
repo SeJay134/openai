@@ -64,7 +64,7 @@ When you need to show an image in chat, respond ONLY in JSON:
   "reply": "text for user",
   "make_image": true,
   "image_prompt": "prompt for image generation in English or Russian",
-  "size": "1024x1024"
+  "size": "1536x1024"
 }
 When no image needed:
 {
@@ -73,19 +73,7 @@ When no image needed:
 }
 No extra text outside JSON.
 """
-# When you need to show an image in chat, respond ONLY in JSON:
-# {
-#   "reply": "text for user",
-#   "make_image": true,
-#   "image_prompt": "prompt for image generation in English or Russian",
-#   "size": "1024x1024"
-# }
-# When no image needed:
-# {
-#   "reply": "text for user",
-#   "make_image": false
-# }
-# No extra text outside JSON.
+
 
 # ------------- memory ---------------
 MEMORY_FILE = 'memory.json'
@@ -159,7 +147,7 @@ def chat_options():
 def generate_image_to_file(prompt: str, size: str = "1024x1024"):
     allowed_sizes = {"1024x1024", "1536x1024", "1024x1536"}
     if size not in allowed_sizes:
-        size = "1024x1024"
+        size = "1536x1024"
 
     result = client.images.generate(
         model="gpt-image-1",
@@ -175,7 +163,7 @@ def generate_image_to_file(prompt: str, size: str = "1024x1024"):
     filename = f"{ts}_{uuid4().hex}.jpg"
 
     filepath = os.path.join(GENERATED_DIR, filename)
-    img.save(filepath, format="JPEG", quality=92, optimize=True)
+    img.save(filepath, format="JPEG", quality=97, optimize=True)   # settings
 
     base_url = request.host_url.rstrip("/")
     url = f"{base_url}/generated/{filename}"
@@ -234,7 +222,7 @@ def chat():
 
         if make_image:
             image_prompt = (payload.get("image_prompt") or "").strip()
-            size = (payload.get("size") or "1024x1024").strip()
+            size = (payload.get("size") or "1536x1024").strip()
 
             if image_prompt:
                 image_url, image_filename = generate_image_to_file(image_prompt, size)
@@ -268,7 +256,7 @@ def get_memory():
 def api_image():
     data = request.get_json(force=True) or {}
     prompt = (data.get("prompt") or "").strip()
-    size = (data.get("size") or "1024x1024").strip()
+    size = (data.get("size") or "1536x1024").strip()
     if not prompt:
         return jsonify({"error": "prompt is required"}), 400
 
