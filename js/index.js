@@ -1,13 +1,13 @@
 // index.js
 
 function fixMobileHeight() {
-    const vh = (window.visualViewport?.height || window.innerHeight) * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  document.documentElement.style.setProperty('--app-height', `${h}px`);
 }
 
 fixMobileHeight();
+window.addEventListener('resize', fixMobileHeight);
 window.visualViewport?.addEventListener('resize', fixMobileHeight);
-window.addEventListener('orientationchange', fixMobileHeight);
 
 // const API_URL;
 
